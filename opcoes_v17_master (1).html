@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador B3 v17.0 - Master Dashboard</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        /* DESIGN SYSTEM DARK PRO */
+        :root {
+            --bg-body: #0f172a; --bg-card: #1e293b; --bg-input: #334155;
+            --primary: #3b82f6; --accent: #6366f1;
+            --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
+            --text-main: #f1f5f9; --text-muted: #94a3b8;
+            --border: #334155;
+            --purple: #a855f7;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Inter, sans-serif; }
+        body { background: var(--bg-body); color: var(--text-main); padding: 25px; font-size: 14px; }
+        .container { max-width: 1800px; margin: 0 auto; }
+
+        /* HEADER */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding: 20px; background: var(--bg-card); border-radius: 12px; border-bottom: 2px solid var(--accent); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.5px; margin: 0; }
+        .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-top: 4px; }
+
+        /* LAYOUT GRID (SIDEBAR + MAIN) */
+        .dashboard { display: grid; grid-template-columns: 360px 1fr; gap: 20px; }
+        
+        /* PANELS */
+        .panel { background: var(--bg-card); border-radius: 10px; border: 1px solid var(--border); margin-bottom: 20px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+        .panel-head { background: #020617; padding: 12px 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .panel-title { font-weight: 700; color: var(--text-main); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
+        .panel-body { padding: 15px; }
+
+        /* INPUTS */
+        .input-group { margin-bottom: 12px; }
+        label { display: block; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; }
+        input, select { width: 100%; background: var(--bg-input); border: 1px solid var(--border); color: white; padding: 8px 10px; border-radius: 6px; font-size: 0.9rem; transition: 0.2s; }
+        input:focus, select:focus { border-color: var(--primary); outline: none; }
+
+        /* PERNAS (GRID HORIZONTAL CORRIGIDO) */
+        #listaPernas { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 10px; 
+        }
+        .perna-item { 
+            background: #0f172a; border: 1px solid var(--border); border-left: 3px solid var(--accent); 
+            border-radius: 6px; padding: 12px; position: relative; 
+        }
+        .perna-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.75rem; color: var(--text-muted); font-weight: bold; }
+        .btn-del { color: var(--danger); background: none; border: none; font-weight: bold; cursor: pointer; font-size: 1.2rem; line-height: 0.5; }
+
+        /* KPIs */
+        .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .kpi { background: var(--bg-card); padding: 15px; border-radius: 8px; border-left: 4px solid var(--border); position: relative; }
+        .kpi-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: bold; }
+        .kpi-val { font-size: 1.5rem; font-weight: 700; margin-top: 5px; color: var(--text-main); }
+        .kpi-sub { font-size: 0.8rem; margin-top: 2px; font-weight: 600; }
+        
+        .k-blue { border-color: var(--primary); }
+        .k-green { border-color: var(--success); } .k-green .kpi-sub { color: var(--success); }
+        .k-red { border-color: var(--danger); } .k-red .kpi-sub { color: var(--danger); }
+        .k-purple { border-color: var(--purple); }
+
+        /* TABELA CENÁRIOS */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .data-table th { text-align: left; padding: 12px; background: #0f172a; border-bottom: 2px solid var(--border); color: var(--text-muted); }
+        .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text-main); }
+        .win { color: var(--success); font-weight: 700; background: rgba(16, 185, 129, 0.1); padding: 2px 6px; border-radius: 4px; }
+        .loss { color: var(--danger); font-weight: 700; background: rgba(239, 68, 68, 0.1); padding: 2px 6px; border-radius: 4px; }
+        .ir-val { color: #f87171; font-size: 0.8rem; }
+
+        /* BOTÕES */
+        .btn { padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; border: none; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 8px; color: white; transition: 0.2s; width: 100%; justify-content: center; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-primary { background: var(--primary); }
+        .btn-success { background: var(--success); }
+        .btn-danger { background: var(--danger); width: auto; padding: 4px 10px; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); width: auto; }
+        .btn-calc { background: linear-gradient(135deg, #3b82f6, #2563eb); margin-top: 15px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); font-size: 1rem; }
+        .btn-ai { background: linear-gradient(135deg, #7c3aed, #d946ef); box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3); }
+
+        /* ESTRATÉGIAS RÁPIDAS */
+        .estrategias-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 15px;
+        }
+        .btn-estrategia {
+            background: linear-gradient(135deg, #1e293b, #334155);
+            border: 1px solid var(--border);
+            padding: 10px 8px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: 0.2s;
+            text-align: center;
+        }
+        .btn-estrategia:hover {
+            border-color: var(--accent);
+            background: linear-gradient(135deg, #334155, #475569);
+            transform: translateY(-2px);
+        }
+        .btn-estrategia .emoji {
+            display: block;
+            font-size: 1.2rem;
+            margin-bottom: 4px;
+        }
+        .btn-estrategia .nome {
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .btn-estrategia .desc {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* MODAL */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .modal-content { background: var(--bg-card); width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; padding: 30px; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+
+        .hidden { display: none !important; }
+        .status-pill { padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 700; background: #334155; color: #94a3b8; }
+        .status-ok { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+
+        /* SEÇÃO DE ESTRATÉGIAS */
+        .estrategias-section {
+            border-top: 1px solid var(--border);
+            padding-top: 15px;
+            margin-top: 15px;
+        }
+        .estrategias-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* TOOLTIP PARA ESTRATÉGIAS */
+        .tooltip-info {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+        }
+        .tooltip-info::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #020617;
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: 0.2s;
+            z-index: 100;
+        }
+        .tooltip-info:hover::after {
+            opacity: 1;
+        }
+
+        @media (max-width: 1024px) { 
+            .dashboard { grid-template-columns: 1fr; } 
+            .kpi-row { grid-template-columns: 1fr 1fr; } 
+            .estrategias-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="printable">
+    
+    <div class="header">
+        <div>
+            <h1>Simulador B3 <span style="font-size:0.6em; vertical-align: super; color:var(--accent);">v17.0 MASTER</span></h1>
+            <p class="subtitle">Matriz Fiscal Detalhada, Gráfico Sensível e Gestão de Posições</p>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <span id="fileStatus" class="status-pill">Sem CSV</span>
+            <button onclick="gerarPDF()" class="btn btn-outline">🖨️ Relatório</button>
+        </div>
+    </div>
+
+    <div class="dashboard">
+        
+        <aside>
+            <div class="panel" style="border-left: 4px solid var(--primary);">
+                <div class="panel-head"><span class="panel-title">📂 Dados Profit (.csv)</span></div>
+                <div class="panel-body">
+                    <div style="display:flex; gap:5px; margin-bottom:5px;">
+                        <input type="file" id="fileInput" accept=".csv" onchange="lerCSV(this)" style="font-size:0.8rem;">
+                        <button onclick="aplicarDadosCSV()" class="btn btn-primary" style="width:auto; padding:8px;">🔄</button>
+                    </div>
+                    <p style="font-size:0.7rem; color:var(--text-muted);">* Compra no Ask / Venda no Bid.</p>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-head"><span class="panel-title">⚙️ Parâmetros</span></div>
+                <div class="panel-body">
+                    <div class="input-group"><label>Ativo</label><input type="text" id="ativoObjeto" value="PETR4" onchange="calc()" style="text-transform:uppercase; font-weight:bold;"></div>
+                    <div class="input-group"><label>Preço Atual (R$)</label><input type="number" id="precoAtivo" value="30.00" step="0.01" onchange="calc()"></div>
+                    <div class="input-group"><label>Selic Anual (%)</label><input type="number" id="taxaSelic" value="10.75" step="0.01" onchange="calc()"></div>
+                    
+                    <div style="border-top:1px solid var(--border); padding-top:15px; margin-top:15px;">
+                        <label style="display:flex; align-items:center; cursor:pointer; margin-bottom:10px;">
+                            <input type="checkbox" id="descontarIR" onchange="calc()" style="width:auto; margin-right:8px;" checked> 
+                            Deduzir IR (15% Opções / Regressivo CDI)
+                        </label>
+                        <label style="display:flex; align-items:center; cursor:pointer;">
+                            <input type="checkbox" id="incluirPapel" onchange="togglePapel()" style="width:auto; margin-right:8px;"> 
+                            Incluir Ação (Venda Coberta)
+                        </label>
+                        <div id="papelConfig" class="hidden" style="margin-top:10px; background:#0f172a; padding:10px; border-radius:6px; border:1px solid var(--border);">
+                            <div class="input-group"><label>Preço Médio</label><input type="number" id="pmPapel" value="30.00"></div>
+                            <div class="input-group"><label>Quantidade</label><input type="number" id="qtdPapel" value="100"></div>
+                        </div>
+                    </div>
+
+                    <button onclick="calc()" class="btn btn-calc">📊 CALCULAR GRÁFICO</button>
+
+                    <!-- ESTRATÉGIAS RÁPIDAS -->
+                    <div class="estrategias-section">
+                        <div class="estrategias-title">⚡ Estratégias Rápidas</div>
+                        <div class="estrategias-grid">
+                            <button class="btn-estrategia" onclick="montarTravaCall()">
+                                <span class="emoji">📈</span>
+                                <span class="nome">Trava de Alta (Call)</span>
+                                <span class="desc">Lucro limitado, risco limitado</span>
+                            </button>
+                            <button class="btn-estrategia" onclick="montarTravaPut()">
+                                <span class="emoji">📉</span>
+                                <span class="nome">Trava de Baixa (Put)</span>
+                                <span class="desc">Aposta na queda</span>
+                            </button>
+                            <button class="btn-estrategia" onclick="montarStraddle()">
+                                <span class="emoji">🎯</span>
+                                <span class="nome">Straddle</span>
+                                <span class="desc">Alta volatilidade</span>
+                            </button>
+                            <button class="btn-estrategia" onclick="montarStrangle()">
+                                <span class="emoji">🔀</span>
+                                <span class="nome">Strangle</span>
+                                <span class="desc">Vol. alta, custo menor</span>
+                            </button>
+                            <button class="btn-estrategia" onclick="montarIronCondor()">
+                                <span class="emoji">🦅</span>
+                                <span class="nome">Iron Condor</span>
+                                <span class="desc">Mercado lateral</span>
+                            </button>
+                            <button class="btn-estrategia" onclick="montarButterfly()">
+                                <span class="emoji">🦋</span>
+                                <span class="nome">Butterfly</span>
+                                <span class="desc">Alvo preciso</span>
+                            </button>
+                            <button class="btn-estrategia" onclick="montarCollar()">
+                                <span class="emoji">🛡️</span>
+                                <span class="nome">Collar</span>
+                                <span class="desc">Proteção com ação</span>
+                            </button>
+                            <button class="btn-estrategia" onclick="montarRatioSpread()">
+                                <span class="emoji">⚖️</span>
+                                <span class="nome">Ratio Spread</span>
+                                <span class="desc">Crédito com risco</span>
+                            </button>
+                            <button class="btn-estrategia" onclick="montarCallCalendar()">
+                                <span class="emoji">📅</span>
+                                <span class="nome">Calendar Spread</span>
+                                <span class="desc">Vencimentos diferentes</span>
+                            </button>
+                            <button class="btn-estrategia" onclick="montarIronButterfly()">
+                                <span class="emoji">🔷</span>
+                                <span class="nome">Iron Butterfly</span>
+                                <span class="desc">Straddle vendido + proteção</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="addPerna()" class="btn btn-success" style="margin-bottom: 20px;">+ ADICIONAR PERNA</button>
+
+        </aside>
+
+        <main>
+            
+            <div class="panel">
+                <div class="panel-head">
+                    <span class="panel-title">🧩 Estrutura (Pernas)</span>
+                    <button onclick="limpar()" class="btn btn-danger" style="width:auto; font-size:0.7rem;">LIMPAR TUDO</button>
+                </div>
+                <div class="panel-body">
+                    <div id="listaPernas"></div>
+                </div>
+            </div>
+
+            <div class="kpi-row">
+                <div class="kpi k-blue">
+                    <div class="kpi-label">Investimento Total</div>
+                    <div class="kpi-val" id="kpiInvest">R$ 0,00</div>
+                    <div class="kpi-sub" id="kpiTipo">Neutro</div>
+                </div>
+                <div class="kpi k-green">
+                    <div class="kpi-label">Lucro Máximo (Bruto)</div>
+                    <div class="kpi-val" id="kpiLucro">R$ 0,00</div>
+                    <div class="kpi-sub" id="kpiLucroPct">0%</div>
+                </div>
+                <div class="kpi k-red">
+                    <div class="kpi-label">Risco Máximo</div>
+                    <div class="kpi-val" id="kpiRisco">R$ 0,00</div>
+                    <div class="kpi-sub" id="kpiRiscoPct">0%</div>
+                </div>
+                <div class="kpi k-purple">
+                    <div class="kpi-label">Benchmark CDI (Líq)</div>
+                    <div class="kpi-val" id="kpiCDI">0.00%</div>
+                    <div class="kpi-sub" id="kpiDias">30 dias</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-head">
+                    <span class="panel-title">📈 Gráfico de Payoff (High Sensitivity)</span>
+                    <span id="estrategiaNome" style="font-size:0.8rem; color:var(--accent); font-weight:bold;"></span>
+                </div>
+                <div class="panel-body">
+                    <div style="height: 400px; width: 100%;">
+                        <canvas id="chartPayoff"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel" style="border-top: 4px solid var(--warning);">
+                <div class="panel-head">
+                    <span class="panel-title">🔮 Matriz Fiscal de Cenários</span>
+                    <div style="font-size:0.8rem; color:var(--text-muted);">Comparação Líquida Real</div>
+                </div>
+                <div class="panel-body">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Cenário</th>
+                                <th>Ativo</th>
+                                <th>Res. Bruto</th>
+                                <th>IR Opções (15%)</th>
+                                <th>Res. Líquido</th>
+                                <th>IR CDI</th>
+                                <th>CDI Líquido</th>
+                                <th>Alpha (Dif)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tblCenarios"></tbody>
+                    </table>
+
+                    <div style="margin-top: 25px;">
+                        <button onclick="analisarIA()" class="btn btn-ai">🧠 Análise do Consultor Virtual</button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+</div>
+
+<div id="modalIA" class="modal">
+    <div class="modal-content">
+        <div style="display:flex; justify-content:space-between; margin-bottom:20px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+            <h2 style="color: var(--accent); margin:0;">🤖 Diagnóstico Técnico</h2>
+            <button onclick="document.getElementById('modalIA').style.display='none'" style="background:none; border:none; color:var(--text-muted); font-size:1.5rem; cursor:pointer;">&times;</button>
+        </div>
+        <div id="iaContent" style="line-height:1.7; color:var(--text-main);"></div>
+    </div>
+</div>
+
+<script>
+    // --- ESTADO ---
+    let pernas = [];
+    let dadosMercado = {}; 
+    let chartInstance = null;
+    let estrategiaAtual = "";
+
+    class Perna {
+        constructor(id, ticker='', tipo='call', operacao='compra', strike=30, premio=1, qtd=100) {
+            this.id=id; this.ticker=ticker.toUpperCase(); this.tipo=tipo; this.operacao=operacao;
+            this.strike=parseFloat(strike); this.premio=parseFloat(premio); this.quantidade=parseInt(qtd);
+            this.vencimento='';
+        }
+    }
+
+    // --- CSV ---
+    function lerCSV(i) {
+        if(!i.files[0]) return;
+        document.getElementById('fileStatus').innerText = "Lendo...";
+        const r = new FileReader(); r.onload = e => processarCSV(e.target.result); r.readAsText(i.files[0], "ISO-8859-1");
+    }
+    function processarCSV(c) {
+        const l = c.split('\n'); dadosMercado={}; let k=0;
+        for(let i=1;i<l.length;i++) {
+            const cols=l[i].trim().split(';');
+            if(cols.length>18) {
+                const tk=cols[0].trim().toUpperCase();
+                const p=v=>parseFloat(v.replace(/\./g,'').replace(',','.'))||0;
+                if(tk) {
+                    dadosMercado[tk] = {
+                        u: p(cols[3]), b: p(cols[17]), a: p(cols[18]), k: p(cols[8]),
+                        t: (cols[12]||"").toUpperCase().includes("VENDA")?"put":"call",
+                        v: cols[34]?cols[34].split('/').reverse().join('-'):""
+                    }; k++;
+                }
+            }
+        }
+        document.getElementById('fileStatus').innerText = `✅ ${k} Ativos`;
+        document.getElementById('fileStatus').className = "status-pill status-ok";
+        aplicarDadosCSV();
+    }
+    function aplicarDadosCSV() {
+        const m = document.getElementById('ativoObjeto').value.toUpperCase();
+        if(dadosMercado[m]) document.getElementById('precoAtivo').value = dadosMercado[m].u;
+        pernas.forEach(p => {
+            const d = dadosMercado[p.ticker];
+            if(d) {
+                p.premio = (p.operacao === 'compra') ? (d.a || d.u) : (d.b || d.u);
+                if(d.k > 0) p.strike = d.k;
+                if(d.v) p.vencimento = d.v;
+                p.tipo = d.t;
+            }
+        });
+        renderPernas(); calc();
+    }
+
+    // --- ESTRATÉGIAS RÁPIDAS ---
+    function montarTravaCall() {
+        const S = parseFloat(document.getElementById('precoAtivo').value) || 30;
+        limpar();
+        estrategiaAtual = "Trava de Alta (Bull Call Spread)";
+        pernas.push(new Perna(Date.now(), '', 'call', 'compra', S, 2.00, 100));
+        pernas.push(new Perna(Date.now()+1, '', 'call', 'venda', S * 1.05, 0.80, 100));
+        renderPernas(); calc();
+    }
+
+    function montarTravaPut() {
+        const S = parseFloat(document.getElementById('precoAtivo').value) || 30;
+        limpar();
+        estrategiaAtual = "Trava de Baixa (Bear Put Spread)";
+        pernas.push(new Perna(Date.now(), '', 'put', 'compra', S, 2.00, 100));
+        pernas.push(new Perna(Date.now()+1, '', 'put', 'venda', S * 0.95, 0.80, 100));
+        renderPernas(); calc();
+    }
+
+    function montarStraddle() {
+        const S = parseFloat(document.getElementById('precoAtivo').value) || 30;
+        limpar();
+        estrategiaAtual = "Straddle Comprado";
+        pernas.push(new Perna(Date.now(), '', 'call', 'compra', S, 1.50, 100));
+        pernas.push(new Perna(Date.now()+1, '', 'put', 'compra', S, 1.50, 100));
+        renderPernas(); calc();
+    }
+
+    function montarStrangle() {
+        const S = parseFloat(document.getElementById('precoAtivo').value) || 30;
+        limpar();
+        estrategiaAtual = "Strangle Comprado";
+        pernas.push(new Perna(Date.now(), '', 'call', 'compra', S * 1.05, 0.80, 100));
+        pernas.push(new Perna(Date.now()+1, '', 'put', 'compra', S * 0.95, 0.80, 100));
+        renderPernas(); calc();
+    }
+
+    function montarIronCondor() {
+        const S = parseFloat(document.getElementById('precoAtivo').value) || 30;
+        limpar();
+        estrategiaAtual = "Iron Condor";
+        // Vende Put OTM
+        pernas.push(new Perna(Date.now(), '', 'put', 'venda', S * 0.95, 0.60, 100));
+        // Compra Put mais OTM (proteção)
+        pernas.push(new Perna(Date.now()+1, '', 'put', 'compra', S * 0.90, 0.25, 100));
+        // Vende Call OTM
+        pernas.push(new Perna(Date.now()+2, '', 'call', 'venda', S * 1.05, 0.60, 100));
+        // Compra Call mais OTM (proteção)
+        pernas.push(new Perna(Date.now()+3, '', 'call', 'compra', S * 1.10, 0.25, 100));
+        renderPernas(); calc();
+    }
+
+    function montarButterfly() {
+        const S = parseFloat(document.getElementById('precoAtivo').value) || 30;
+        limpar();
+        estrategiaAtual = "Butterfly (Borboleta)";
+        // Compra 1 Call ITM
+        pernas.push(new Perna(Date.now(), '', 'call', 'compra', S * 0.95, 2.50, 100));
+        // Vende 2 Calls ATM
+        pernas.push(new Perna(Date.now()+1, '', 'call', 'venda', S, 1.50, 200));
+        // Compra 1 Call OTM
+        pernas.push(new Perna(Date.now()+2, '', 'call', 'compra', S * 1.05, 0.80, 100));
+        renderPernas(); calc();
+    }
+
+    function montarCollar() {
+        const S = parseFloat(document.getElementById('precoAtivo').value) || 30;
+        limpar();
+        estrategiaAtual = "Collar (Proteção)";
+        // Ativa a ação
+        document.getElementById('incluirPapel').checked = true;
+        document.getElementById('pmPapel').value = S;
+        document.getElementById('qtdPapel').value = 100;
+        togglePapel();
+        // Compra Put OTM (proteção contra queda)
+        pernas.push(new Perna(Date.now(), '', 'put', 'compra', S * 0.95, 0.80, 100));
+        // Vende Call OTM (financia a put)
+        pernas.push(new Perna(Date.now()+1, '', 'call', 'venda', S * 1.05, 0.80, 100));
+        renderPernas(); calc();
+    }
+
+    function montarRatioSpread() {
+        const S = parseFloat(document.getElementById('precoAtivo').value) || 30;
+        limpar();
+        estrategiaAtual = "Ratio Call Spread (1x2)";
+        // Compra 1 Call ATM
+        pernas.push(new Perna(Date.now(), '', 'call', 'compra', S, 1.80, 100));
+        // Vende 2 Calls OTM
+        pernas.push(new Perna(Date.now()+1, '', 'call', 'venda', S * 1.05, 0.95, 200));
+        renderPernas(); calc();
+    }
+
+    function montarCallCalendar() {
+        const S = parseFloat(document.getElementById('precoAtivo').value) || 30;
+        limpar();
+        estrategiaAtual = "Calendar Spread (Diagonal)";
+        // Vende Call curto prazo
+        const hoje = new Date();
+        const venc1 = new Date(hoje.getTime() + 30*24*60*60*1000);
+        const venc2 = new Date(hoje.getTime() + 60*24*60*60*1000);
+        
+        const p1 = new Perna(Date.now(), '', 'call', 'venda', S, 1.00, 100);
+        p1.vencimento = venc1.toISOString().split('T')[0];
+        pernas.push(p1);
+        
+        // Compra Call longo prazo
+        const p2 = new Perna(Date.now()+1, '', 'call', 'compra', S, 1.80, 100);
+        p2.vencimento = venc2.toISOString().split('T')[0];
+        pernas.push(p2);
+        
+        renderPernas(); calc();
+    }
+
+    function montarIronButterfly() {
+        const S = parseFloat(document.getElementById('precoAtivo').value) || 30;
+        limpar();
+        estrategiaAtual = "Iron Butterfly";
+        // Vende Straddle ATM
+        pernas.push(new Perna(Date.now(), '', 'call', 'venda', S, 1.50, 100));
+        pernas.push(new Perna(Date.now()+1, '', 'put', 'venda', S, 1.50, 100));
+        // Compra proteção nas pontas
+        pernas.push(new Perna(Date.now()+2, '', 'call', 'compra', S * 1.05, 0.60, 100));
+        pernas.push(new Perna(Date.now()+3, '', 'put', 'compra', S * 0.95, 0.60, 100));
+        renderPernas(); calc();
+    }
+
+    // --- UI ---
+    function addPerna() {
+        estrategiaAtual = "";
+        pernas.push(new Perna(Date.now(), '', 'call', 'compra', document.getElementById('precoAtivo').value, 1, 100));
+        renderPernas(); calc();
+    }
+    function renderPernas() {
+        const c = document.getElementById('listaPernas'); c.innerHTML = '';
+        pernas.forEach((p, i) => {
+            const auto = dadosMercado[p.ticker] ? '<span style="color:var(--success); font-size:0.7rem;">● AUTO</span>' : '';
+            c.innerHTML += `
+            <div class="perna-item">
+                <div class="perna-header">
+                    <span>#${i+1} PERNA ${auto}</span>
+                    <button class="btn-del" onclick="delPerna(${p.id})">&times;</button>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px;">
+                    <div><label>Cód</label><input type="text" value="${p.ticker}" onchange="upd(${p.id},'ticker',this.value)" style="text-transform:uppercase; font-weight:bold; color:var(--primary);"></div>
+                    <div><label>Op.</label><select onchange="upd(${p.id},'operacao',this.value)" style="font-weight:bold; color:${p.operacao=='compra'?'var(--success)':'var(--danger)'}"><option value="compra" ${p.operacao=='compra'?'selected':''}>Comprar</option><option value="venda" ${p.operacao=='venda'?'selected':''}>Vender</option></select></div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px;">
+                    <div><label>Tipo</label><select onchange="upd(${p.id},'tipo',this.value)"><option value="call" ${p.tipo=='call'?'selected':''}>Call</option><option value="put" ${p.tipo=='put'?'selected':''}>Put</option></select></div>
+                    <div><label>Strike</label><input type="number" step="0.01" value="${p.strike.toFixed(2)}" onchange="upd(${p.id},'strike',this.value)"></div>
+                    <div><label>Prêmio</label><input type="number" step="0.01" value="${p.premio.toFixed(2)}" onchange="upd(${p.id},'premio',this.value)"></div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:8px;">
+                    <div><label>Qtd</label><input type="number" value="${p.quantidade}" onchange="upd(${p.id},'quantidade',this.value)"></div>
+                    <div><label>Venc</label><input type="date" value="${p.vencimento}" onchange="upd(${p.id},'vencimento',this.value)"></div>
+                </div>
+            </div>`;
+        });
+    }
+    function upd(id, f, v) {
+        estrategiaAtual = "";
+        const p = pernas.find(x => x.id === id);
+        if(f==='ticker') { p.ticker = v.toUpperCase(); const d=dadosMercado[p.ticker]; if(d){ p.tipo=d.t; p.strike=d.k; p.vencimento=d.v; p.premio=p.operacao=='compra'?(d.a||d.u):(d.b||d.u); renderPernas(); return;} }
+        if(f==='operacao') { p.operacao = v; const d=dadosMercado[p.ticker]; if(d){ p.premio=v=='compra'?(d.a||d.u):(d.b||d.u); renderPernas(); return;} }
+        if(f==='quantidade') p.quantidade = parseInt(v);
+        else if(f!=='vencimento' && f!=='tipo') p[f] = parseFloat(v);
+        else p[f] = v;
+        calc();
+    }
+    function delPerna(id) { estrategiaAtual = ""; pernas = pernas.filter(x => x.id !== id); renderPernas(); calc(); }
+    function limpar() { 
+        pernas = []; 
+        estrategiaAtual = "";
+        document.getElementById('incluirPapel').checked = false;
+        document.getElementById('papelConfig').classList.add('hidden');
+        renderPernas(); calc(); 
+    }
+    function togglePapel() { document.getElementById('papelConfig').classList.toggle('hidden', !document.getElementById('incluirPapel').checked); calc(); }
+
+    // --- CÁLCULO ---
+    function getPayoff(price) {
+        let res = 0;
+        if(document.getElementById('incluirPapel').checked) {
+            res += (price - parseFloat(document.getElementById('pmPapel').value)) * parseFloat(document.getElementById('qtdPapel').value);
+        }
+        pernas.forEach(p => {
+            let vi = p.tipo === 'call' ? Math.max(0, price - p.strike) : Math.max(0, p.strike - price);
+            if(p.operacao === 'compra') res += (vi - p.premio) * p.quantidade;
+            else res += (p.premio - vi) * p.quantidade;
+        });
+        return res;
+    }
+
+    function calc() {
+        const S = parseFloat(document.getElementById('precoAtivo').value) || 30;
+        const selic = parseFloat(document.getElementById('taxaSelic').value);
+        const descIR = document.getElementById('descontarIR').checked;
+
+        // Custos
+        let custo = 0;
+        pernas.forEach(p => custo += (p.operacao === 'compra' ? -1 : 1) * p.premio * p.quantidade);
+        if(document.getElementById('incluirPapel').checked) custo -= parseFloat(document.getElementById('pmPapel').value) * parseFloat(document.getElementById('qtdPapel').value);
+        const invest = Math.abs(custo);
+        const isCred = custo >= 0;
+
+        document.getElementById('kpiInvest').innerText = `R$ ${invest.toFixed(2)}`;
+        document.getElementById('kpiTipo').innerText = isCred ? "CRÉDITO" : "DÉBITO";
+
+        // Simulação
+        const min = S * 0.6, max = S * 1.4, steps = 100, stepVal = (max - min) / steps;
+        let labels = [], data = [], maxL = -Infinity, maxR = Infinity;
+
+        for(let i=0; i<=steps; i++) {
+            const p = min + (i * stepVal);
+            const rBruto = getPayoff(p);
+            labels.push(p.toFixed(2));
+            data.push(rBruto);
+            if(rBruto > maxL) maxL = rBruto;
+            if(rBruto < maxR) maxR = rBruto;
+        }
+
+        document.getElementById('kpiLucro').innerText = maxL > 999999 ? "Ilimitado" : `R$ ${maxL.toFixed(2)}`;
+        document.getElementById('kpiRisco').innerText = maxR < -999999 ? "Ilimitado" : `R$ ${Math.abs(maxR).toFixed(2)}`;
+        if(invest > 0) {
+            document.getElementById('kpiLucroPct').innerText = maxL < 999999 ? `+${((maxL/invest)*100).toFixed(1)}%` : "∞";
+            document.getElementById('kpiRiscoPct').innerText = maxR > -999999 ? `${((maxR/invest)*100).toFixed(1)}%` : "∞";
+        }
+
+        // CDI e Cenários
+        let dias = 30;
+        pernas.forEach(p => { if(p.vencimento) dias = Math.ceil(Math.abs(new Date(p.vencimento) - new Date()) / 86400000); });
+        document.getElementById('kpiDias').innerText = `${dias} dias`;
+
+        const baseCalc = invest > 0 ? invest : (pernas.length > 0 ? 1000 : 0);
+        // Fator Bruto
+        const fatorBruto = Math.pow(1 + (selic/100), dias/365) - 1;
+        // Aliq Regressiva
+        let aliqRF = 0.225; if(dias>180)aliqRF=0.20; if(dias>360)aliqRF=0.175; if(dias>720)aliqRF=0.15;
+        // Fator Liquido
+        const fatorLiq = fatorBruto * (1 - aliqRF);
+        document.getElementById('kpiCDI').innerText = (fatorLiq * 100).toFixed(2) + "%";
+
+        const cenarios = [
+            {n: "Queda -10%", p: S*0.9}, {n: "Queda -5%", p: S*0.95}, {n: "Lateral", p: S}, {n: "Alta +5%", p: S*1.05}, {n: "Alta +10%", p: S*1.1}
+        ];
+        
+        const tbl = document.getElementById('tblCenarios'); tbl.innerHTML = '';
+        
+        cenarios.forEach(c => {
+            const resBruto = getPayoff(c.p);
+            // IR Opções: 15% sobre lucro bruto positivo
+            const irOp = (resBruto > 0) ? resBruto * 0.15 : 0;
+            const resLiq = resBruto - (descIR ? irOp : 0);
+            
+            // CDI
+            const cdiBrutoVal = baseCalc * fatorBruto;
+            const irCDIVal = cdiBrutoVal * aliqRF;
+            const cdiLiqVal = cdiBrutoVal - (descIR ? irCDIVal : 0);
+
+            // Alpha
+            const alpha = resLiq - cdiLiqVal;
+            const cls = alpha > 0 ? "win" : "loss";
+
+            tbl.innerHTML += `
+            <tr>
+                <td>${c.n}</td>
+                <td>R$ ${c.p.toFixed(2)}</td>
+                <td style="font-weight:bold;">R$ ${resBruto.toFixed(2)}</td>
+                <td class="ir-val">R$ ${irOp.toFixed(2)}</td>
+                <td style="font-weight:bold; color:var(--primary);">R$ ${resLiq.toFixed(2)}</td>
+                <td class="ir-val">R$ ${irCDIVal.toFixed(2)}</td>
+                <td style="color:var(--text-muted);">R$ ${cdiLiqVal.toFixed(2)}</td>
+                <td class="${cls}">${alpha>0?'+':''}R$ ${alpha.toFixed(2)}</td>
+            </tr>`;
+        });
+
+        // Atualiza nome da estratégia
+        document.getElementById('estrategiaNome').innerText = estrategiaAtual || detectarEstrategia();
+
+        drawChart(labels, data, S, invest);
+    }
+
+    function detectarEstrategia() {
+        let cc=0,cv=0,pc=0,pv=0;
+        pernas.forEach(p => { 
+            if(p.tipo=='call') p.operacao=='compra'?cc++:cv++; 
+            else p.operacao=='compra'?pc++:pv++; 
+        });
+        
+        const temPapel = document.getElementById('incluirPapel').checked;
+        
+        if(temPapel && cv > 0 && cc === 0 && pc === 0 && pv === 0) return "Venda Coberta (Financiamento)";
+        if(temPapel && pc > 0 && cv > 0) return "Collar (Proteção)";
+        if(cc==1 && cv==1 && pc==0 && pv==0) return "Trava de Call";
+        if(pc==1 && pv==1 && cc==0 && cv==0) return "Trava de Put";
+        if(cc==1 && pc==1 && cv==0 && pv==0) return "Straddle Comprado";
+        if(cv==1 && pv==1 && cc==0 && pc==0) return "Straddle Vendido";
+        if(cc==1 && pc==1 && cv==0 && pv==0) {
+            const callStrike = pernas.find(p => p.tipo === 'call' && p.operacao === 'compra')?.strike;
+            const putStrike = pernas.find(p => p.tipo === 'put' && p.operacao === 'compra')?.strike;
+            if(callStrike !== putStrike) return "Strangle Comprado";
+        }
+        if(cv==1 && pv==1 && cc==0 && pc==0) {
+            const callStrike = pernas.find(p => p.tipo === 'call' && p.operacao === 'venda')?.strike;
+            const putStrike = pernas.find(p => p.tipo === 'put' && p.operacao === 'venda')?.strike;
+            if(callStrike !== putStrike) return "Strangle Vendido";
+        }
+        if(cc==2 && cv==1) return "Butterfly Call";
+        if(pc==2 && pv==1) return "Butterfly Put";
+        if(cc==1 && cv==2) return "Ratio Call Spread";
+        if(pc==1 && pv==2) return "Ratio Put Spread";
+        if(cv==1 && pv==1 && cc==1 && pc==1) return "Iron Condor / Iron Butterfly";
+        
+        if(pernas.length === 0) return "";
+        return "Estrutura Personalizada";
+    }
+
+    function drawChart(l, d, curr, inv) {
+        const ctx = document.getElementById('chartPayoff').getContext('2d');
+        if(chartInstance) chartInstance.destroy();
+        
+        // Gradiente para área
+        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, 'rgba(59, 130, 246, 0.3)');
+        gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+        
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: { 
+                labels: l, 
+                datasets: [{ 
+                    label: 'Resultado', 
+                    data: d, 
+                    borderColor: '#3b82f6', 
+                    backgroundColor: gradient, 
+                    fill: true, 
+                    pointRadius: 0, 
+                    borderWidth: 3,
+                    tension: 0.1
+                }] 
+            },
+            options: {
+                responsive: true, 
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { 
+                        backgroundColor: '#0f172a', 
+                        titleColor: '#fff', 
+                        bodyColor: '#cbd5e1',
+                        borderColor: '#334155',
+                        borderWidth: 1,
+                        callbacks: { 
+                            label: c => `R$ ${c.parsed.y.toFixed(2)} (${inv>0?((c.parsed.y/inv)*100).toFixed(1)+"%":""})` 
+                        } 
+                    },
+                    annotation: { 
+                        annotations: { 
+                            line1: { 
+                                type: 'line', 
+                                scaleID: 'x', 
+                                value: curr.toFixed(2), 
+                                borderColor: '#f59e0b', 
+                                borderWidth: 2, 
+                                borderDash: [5, 5],
+                                label: { 
+                                    content: 'Atual', 
+                                    enabled: true, 
+                                    backgroundColor: '#f59e0b',
+                                    color: '#000'
+                                } 
+                            }, 
+                            line0: { 
+                                type: 'line', 
+                                scaleID: 'y', 
+                                value: 0, 
+                                borderColor: '#64748b', 
+                                borderWidth: 2,
+                                borderDash: [3, 3]
+                            } 
+                        } 
+                    }
+                },
+                scales: { 
+                    x: { 
+                        grid: { color: '#334155' }, 
+                        ticks: { color: '#94a3b8', maxTicksLimit: 10 } 
+                    }, 
+                    y: { 
+                        grid: { color: '#334155' }, 
+                        ticks: { 
+                            color: '#94a3b8',
+                            callback: function(value) {
+                                return 'R$ ' + value.toFixed(0);
+                            }
+                        } 
+                    } 
+                }
+            }
+        });
+    }
+
+    function analisarIA() {
+        document.getElementById('modalIA').style.display = 'flex';
+        const inv = document.getElementById('kpiInvest').innerText;
+        const lucro = document.getElementById('kpiLucro').innerText;
+        const risco = document.getElementById('kpiRisco').innerText;
+        const cdi = document.getElementById('kpiCDI').innerText;
+        const tipo = document.getElementById('kpiTipo').innerText;
+        
+        const nome = estrategiaAtual || detectarEstrategia();
+
+        let html = `<h3 style="color:var(--primary); margin-bottom:15px;">${nome}</h3>`;
+        html += `<div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:20px;">`;
+        html += `<div style="background:#0f172a; padding:12px; border-radius:8px;"><strong>Custo:</strong> ${inv}<br><small style="color:var(--text-muted);">${tipo}</small></div>`;
+        html += `<div style="background:#0f172a; padding:12px; border-radius:8px;"><strong>CDI Ref:</strong> ${cdi}</div>`;
+        html += `<div style="background:#0f172a; padding:12px; border-radius:8px;"><strong>Lucro Máx:</strong> <span style="color:var(--success);">${lucro}</span></div>`;
+        html += `<div style="background:#0f172a; padding:12px; border-radius:8px;"><strong>Risco Máx:</strong> <span style="color:var(--danger);">${risco}</span></div>`;
+        html += `</div>`;
+
+        // Análise específica por estratégia
+        html += `<h4 style="color:var(--accent); margin:20px 0 10px;">📊 Análise Técnica</h4>`;
+        
+        if(nome.includes("Trava de Alta") || nome.includes("Bull Call")) {
+            html += `<p>✅ <strong>Cenário ideal:</strong> Alta moderada do ativo subjacente.</p>`;
+            html += `<p>📈 <strong>Gregas:</strong> Delta positivo, Theta negativo (perde com tempo), Vega positivo.</p>`;
+            html += `<p>💡 <strong>Dica:</strong> Ideal quando você espera alta mas quer limitar o custo da operação.</p>`;
+        } else if(nome.includes("Trava de Baixa") || nome.includes("Bear Put")) {
+            html += `<p>✅ <strong>Cenário ideal:</strong> Queda moderada do ativo subjacente.</p>`;
+            html += `<p>📉 <strong>Gregas:</strong> Delta negativo, Theta negativo, Vega positivo.</p>`;
+            html += `<p>💡 <strong>Dica:</strong> Proteção limitada contra queda com custo controlado.</p>`;
+        } else if(nome.includes("Straddle")) {
+            html += `<p>✅ <strong>Cenário ideal:</strong> Explosão de volatilidade em qualquer direção.</p>`;
+            html += `<p>🎯 <strong>Gregas:</strong> Delta neutro, Gamma alto, Vega muito positivo.</p>`;
+            html += `<p>💡 <strong>Dica:</strong> Ideal antes de eventos como balanços ou decisões importantes.</p>`;
+        } else if(nome.includes("Strangle")) {
+            html += `<p>✅ <strong>Cenário ideal:</strong> Grande movimento direcional, custo menor que straddle.</p>`;
+            html += `<p>🔀 <strong>Gregas:</strong> Delta neutro, requer movimento maior para lucro.</p>`;
+            html += `<p>💡 <strong>Dica:</strong> Precisa de movimento mais forte que o straddle, mas custo inicial é menor.</p>`;
+        } else if(nome.includes("Iron Condor")) {
+            html += `<p>✅ <strong>Cenário ideal:</strong> Mercado lateral, baixa volatilidade.</p>`;
+            html += `<p>🦅 <strong>Gregas:</strong> Delta neutro, Theta positivo (ganha com tempo), Vega negativo.</p>`;
+            html += `<p>💡 <strong>Dica:</strong> Excelente para capturar prêmio em mercados sem tendência definida.</p>`;
+        } else if(nome.includes("Butterfly") || nome.includes("Borboleta")) {
+            html += `<p>✅ <strong>Cenário ideal:</strong> Ativo termina exatamente no strike central.</p>`;
+            html += `<p>🦋 <strong>Gregas:</strong> Delta neutro, Gamma negativo próximo ao vencimento.</p>`;
+            html += `<p>💡 <strong>Dica:</strong> Baixo custo com potencial de retorno alto se acertar o alvo.</p>`;
+        } else if(nome.includes("Collar")) {
+            html += `<p>✅ <strong>Cenário ideal:</strong> Proteção da carteira com custo zero.</p>`;
+            html += `<p>🛡️ <strong>Gregas:</strong> Delta reduzido, proteção garantida.</p>`;
+            html += `<p>💡 <strong>Dica:</strong> Ideal para proteger posição em ação sem desembolso (custo zero collar).</p>`;
+        } else if(nome.includes("Ratio")) {
+            html += `<p>✅ <strong>Cenário ideal:</strong> Alta moderada até o strike vendido.</p>`;
+            html += `<p>⚖️ <strong>Gregas:</strong> Delta positivo inicialmente, risco ilimitado acima do strike.</p>`;
+            html += `<p>⚠️ <strong>Atenção:</strong> Risco ilimitado se o ativo subir muito! Monitore de perto.</p>`;
+        } else if(nome.includes("Calendar")) {
+            html += `<p>✅ <strong>Cenário ideal:</strong> Ativo estável até o primeiro vencimento.</p>`;
+            html += `<p>📅 <strong>Gregas:</strong> Theta positivo, Vega positivo, se beneficia de vol.</p>`;
+            html += `<p>💡 <strong>Dica:</strong> Ganha com decaimento de tempo diferencial entre vencimentos.</p>`;
+        } else if(nome.includes("Iron Butterfly")) {
+            html += `<p>✅ <strong>Cenário ideal:</strong> Ativo termina exatamente no strike central.</p>`;
+            html += `<p>🔷 <strong>Gregas:</strong> Delta neutro, Theta muito positivo, Vega negativo.</p>`;
+            html += `<p>💡 <strong>Dica:</strong> Maior crédito que Iron Condor, mas faixa de lucro mais estreita.</p>`;
+        } else if(nome.includes("Venda Coberta")) {
+            html += `<p>✅ <strong>Cenário ideal:</strong> Ativo estável ou leve alta.</p>`;
+            html += `<p>💰 <strong>Gregas:</strong> Delta positivo (da ação), Theta positivo.</p>`;
+            html += `<p>💡 <strong>Dica:</strong> Estratégia conservadora para gerar renda extra na carteira.</p>`;
+        } else {
+            html += `<p>📝 Estrutura customizada. Analise as gregas individuais de cada perna.</p>`;
+        }
+
+        html += `<h4 style="color:var(--accent); margin:20px 0 10px;">⚡ Breakeven Points</h4>`;
+        html += `<p>Os pontos de equilíbrio são calculados no gráfico acima onde a linha cruza o eixo zero (R$ 0,00).</p>`;
+
+        document.getElementById('iaContent').innerHTML = html;
+    }
+
+    function gerarPDF(){ 
+        const e = document.getElementById('printable'); 
+        const opt = {
+            margin: 10,
+            filename: 'Relatorio_Opcoes.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+        };
+        html2pdf().set(opt).from(e).save(); 
+    }
+    
+    window.onload = () => { addPerna(); calc(); }
+</script>
+
+</body>
+</html>
